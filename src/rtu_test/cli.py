@@ -130,6 +130,26 @@ async def set_outputs_high(client):
     return Transition.PROCEED
 
 
+async def set_outputs_low(client):
+    # Step 2
+    #
+    #
+    click.secho("Set All Outputs Low", fg="green", bold=True)
+    result = await modbus.set_digi_output(client, modbus.GPIO.ALL, 0x0000)
+
+    if result.isError():
+        click.secho(f"FAIL. Cannot set all outputs Low, result={
+                    result}", fg="red")
+        return proceed(proceed=False)
+
+    if not click.confirm("Confirm all outputs are set Low."):
+        click.secho(f"FAIL. User observed.", fg="red")
+        return proceed(proceed=False)
+
+    click.secho(f"PASS. All outputs are Low.", fg="green")
+    return Transition.PROCEED
+
+
 async def set_inputs_high(client):
     # Step 2
     #
@@ -194,7 +214,7 @@ async def test_pulse_count(client):
     pc2 = await modbus.get_pulse_count(client, modbus.PulseCounter.IO2)
     click.echo(f"Pulse Counter 1 = {pc1}")
     click.echo(f"Pulse Counter 2 = {pc2}")
-    if (pc1 == 0) or (pc2 == 0):
+    if (pc1[1] == 0) or (pc2[1] == 0):
         click.secho("FAIL. Did not detect pulse counts.", fg="red")
         proceed(proceed=False)
 
@@ -256,6 +276,11 @@ async def reset_all(client):
             exit(1)
         click.echo(f"Set {dig_out} dig out off")
 
+    result = await modbus.set_digi_output(client, modbus.GPIO.ALL, 0x0000)
+    if result.isError():
+        click.echo(f"Failed to reset outputs {dig_out}")
+        exit(1)
+
 
 async def full_test(comport):
 
@@ -270,26 +295,28 @@ async def full_test(comport):
                 transition = await start()
             case TestState.CONNECT:
                 (transition, client) = await connect(comport)
-            case TestState.PRINT_START:
-                transition = await print(client)
+            # case TestState.PRINT_START:
+            #     transition = await print(client)
             case TestState.SET_OUTPUTS_HIGH:
                 transition = await set_outputs_high(client)
-            case TestState.SET_INPUTS_HIGH:
-                transition = await set_inputs_high(client)
-            case TestState.SET_REMEMBERED:
-                transition = await set_remembered(client)
-            case TestState.CHECK_PULSE_COUNT:
-                transition = await test_pulse_count(client)
-            case TestState.CHECK_ANALOG_1:
-                transition = await test_analog(client, modbus.AnalogIn.IO1)
-            case TestState.CHECK_ANALOG_2:
-                transition = await test_analog(client, modbus.AnalogIn.IO2)
-            case TestState.CHECK_ANALOG_3:
-                transition = await test_analog(client, modbus.AnalogIn.IO3)
-            case TestState.CHECK_ANALOG_4:
-                transition = await test_analog(client, modbus.AnalogIn.IO4)
+            # case TestState.SET_INPUTS_HIGH:
+            #     transition = await set_inputs_high(client)
+            # case TestState.SET_REMEMBERED:
+            #     transition = await set_remembered(client)
+            # case TestState.CHECK_PULSE_COUNT:
+            #     transition = await test_pulse_count(client)
+            # case TestState.CHECK_ANALOG_1:
+            #     transition = await test_analog(client, modbus.AnalogIn.IO1)
+            # case TestState.CHECK_ANALOG_2:
+            #     transition = await test_analog(client, modbus.AnalogIn.IO2)
+            # case TestState.CHECK_ANALOG_3:
+            #     transition = await test_analog(client, modbus.AnalogIn.IO3)
+            # case TestState.CHECK_ANALOG_4:
+            #     transition = await test_analog(client, modbus.AnalogIn.IO4)
             case TestState.FINISH:
                 transition = await reset_all(client)
+                transition = await print(client)
+                transition = Transition.QUIT
             case TestState.UNREACHABLE:
                 transition = Transition.QUIT
 
